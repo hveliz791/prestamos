@@ -1,12 +1,14 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  // ✅ 5 intentos por minuto (correcto)
   @Throttle({ default: { ttl: 60, limit: 5 } })
   @Post('login')
   async login(
@@ -19,13 +21,11 @@ export class AuthController {
 
     res.cookie('access_token', token, {
       httpOnly: true,
-      secure: isProd,      // en prod: true (HTTPS)
-      sameSite: 'lax',     // buena opción para apps normales
+      secure: isProd,  // prod: true (https)
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 1000, // 1 hora
     });
-
-    // 👇 ya no mandamos token al frontend
     return { user };
   }
 
@@ -43,10 +43,19 @@ export class AuthController {
     return { ok: true };
   }
 
-  // útil para comprobar sesión desde el frontend
+  // ✅ útil para el router guard del frontend
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   me(@Req() req: Request) {
-    // aquí todavía no validamos JWT; en el siguiente paso lo protegemos con guard cookie/jwt
-    return { ok: true };
+    const u: any = (req as any).user;
+
+    return {
+      user: {
+        id: u.sub,
+        email: u.email,
+        nombre: u.nombre,
+        rol: u.rol,
+      },
+    };
   }
 }
