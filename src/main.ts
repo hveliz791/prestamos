@@ -1,30 +1,35 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ Si estás detrás de proxy (muy común en deploy)
+  // ✅ Proxy (para IP real, throttling, etc.)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // ✅ CORS seguro: solo tu frontend
+  // ✅ Headers de seguridad
+  app.use(helmet());
+
+  app.use(cookieParser());
+
+  // ✅ CORS cerrado (solo tu frontend)
   const allowlist = ['https://pres-roan.vercel.app'];
 
-  app.enableCors({
-    origin: (origin, cb) => {
-      // Permite Postman/curl (sin Origin)
-      if (!origin) return cb(null, true);
+app.enableCors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowlist.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true, // ✅ ahora sí, porque usarás cookies
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
-      if (allowlist.includes(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'), false);
-    },
-    credentials: false, // ✅ usas Bearer token (no cookies)
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
-
-  // ✅ Validación más estricta
+  // ✅ Validación estricta
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
