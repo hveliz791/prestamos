@@ -20,12 +20,12 @@ export class AuthController {
     const isProd = process.env.NODE_ENV === 'production';
 
     res.cookie('access_token', token, {
-      httpOnly: true,
-      secure: isProd,  // prod: true (https)
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 1000, // 1 hora
-    });
+  httpOnly: true,
+  secure: true,        // ✅ obligatorio con SameSite=None
+  sameSite: 'none',    // ✅ para cross-site (frontend y backend distintos)
+  path: '/',
+  maxAge: 60 * 60 * 1000,
+});
     return { user };
   }
 
@@ -34,11 +34,11 @@ export class AuthController {
     const isProd = process.env.NODE_ENV === 'production';
 
     res.clearCookie('access_token', {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      path: '/',
-    });
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  path: '/',
+});
 
     return { ok: true };
   }
