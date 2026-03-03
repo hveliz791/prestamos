@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { ClientesModule } from './clientes/clientes.module';
 import { PrestamosModule } from './prestamos/prestamos.module';
@@ -12,6 +14,14 @@ import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
+    // ✅ Rate limiting (global suave; login lo haremos más estricto)
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,   // 60 segundos
+        limit: 20, // 20 requests/min por IP (global)
+      },
+    ]),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -26,8 +36,8 @@ import { AuthModule } from './auth/auth.module';
         autoLoadEntities: true,
         synchronize: true, // en producción: false + migraciones
         extra: {
-    ssl: { rejectUnauthorized: false },
-  },
+          ssl: { rejectUnauthorized: false },
+        },
       }),
     }),
 
@@ -37,6 +47,10 @@ import { AuthModule } from './auth/auth.module';
     DashboardModule,
     UsersModule,
     AuthModule,
+  ],
+  providers: [
+    // ✅ Activa throttling global
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
